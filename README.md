@@ -127,20 +127,33 @@ pnpm --filter denshees-frontend dev   # → http://localhost:3000
 pnpm --filter denshees-backend dev    # → http://localhost:8100
 ```
 
-## Docker
+## Deploy on Dokploy (Docker Compose)
 
-Run everything with Docker Compose:
+Denshees ships with a self-contained Dokploy-compatible Docker Compose stack (`postgres`, `redis`, `backend`, `denshees`, and `agents`) that runs Prisma database migrations automatically on startup — no external database or reverse proxy setup required.
 
-```sh
-# Make sure .env files exist in both apps
-docker compose up --build
-```
+### Option 1: Dokploy Template (recommended)
 
-This starts:
+This repository follows the [Dokploy template format](https://docs.dokploy.com/docs/core/templates) (`meta.json` + `blueprints/denshees/{docker-compose.yml, template.toml, meta.json, denshees.png}`):
 
-- **Frontend** on port `3000`
-- **Backend** on port `8100`
-- **Redis** on port `6379`
+1. In Dokploy, open **Create Service → Template**.
+2. Set the template **Base URL** to `https://raw.githubusercontent.com/abelink-ai/denshees/main` (or import `blueprints/denshees/` via Base64).
+3. Select **Denshees** — Dokploy automatically generates `POSTGRES_PASSWORD`, `JWT_SECRET`, `API_KEY`, and configures the domain for the `denshees` service on port `3000`.
+4. (Optional) Add `OPENAI_API_KEY`, Google OAuth (`GOOGLE_CLIENT_ID` + `NEXT_PUBLIC_GOOGLE_CLIENT_ID`), SMTP, or Dodo Payments keys in the **Environment** tab, then click **Deploy**.
+
+### Option 2: Dokploy Compose from Git
+
+1. In Dokploy, create a **Compose** service connected to this Git repository with Compose path `./docker-compose.yml`.
+2. Copy the variables from `.env.example` into Dokploy's **Environment** tab (at minimum set `POSTGRES_PASSWORD`, `JWT_SECRET`, and `APP_URL`).
+3. Add a domain pointing to service **`denshees`** on port **`3000`**.
+4. Deploy.
+
+### Services included
+
+- **`denshees`** — Next.js web app & API (`expose: 3000`, health check `/api/health`)
+- **`backend`** — Hono workers, BullMQ queues, IMAP sync, and email tracking (`expose: 8100`, runs `prisma migrate deploy` on boot, health check `/health`)
+- **`agents`** — FastAPI LangGraph AI agent (`expose: 8050`, health check `/health`)
+- **`postgres`** — PostgreSQL 16 (`postgres:16-alpine`) with persistent volume `postgres-data`
+- **`redis`** — Redis 7 (`redis:7-alpine`) with persistent volume `redis-data`
 
 ## Scripts
 

@@ -1,0 +1,124 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-denshees}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-denshees}
+      POSTGRES_DB: ${POSTGRES_DB:-denshees}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-denshees} -d $${POSTGRES_DB:-denshees}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: "https://github.com/abelink-ai/denshees.git#main"
+      dockerfile: apps/denshees-backend/Dockerfile.monorepo
+    restart: unless-stopped
+    expose:
+      - "8100"
+    environment:
+      NODE_ENV: production
+      PORT: 8100
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DATABASE_URL: postgresql://${POSTGRES_USER:-denshees}:${POSTGRES_PASSWORD:-denshees}@postgres:5432/${POSTGRES_DB:-denshees}
+      APP_URL: ${APP_URL:-}
+      TRACKING_BASE_URL: ${TRACKING_BASE_URL:-}
+      AMPLITUDE_API_KEY: ${AMPLITUDE_API_KEY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8100/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  denshees:
+    build:
+      context: "https://github.com/abelink-ai/denshees.git#main"
+      dockerfile: apps/denshees-frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
+        NEXT_PUBLIC_AMPLITUDE_API_KEY: ${NEXT_PUBLIC_AMPLITUDE_API_KEY:-}
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      NODE_ENV: production
+      BACKEND_URL: http://backend:8100
+      AGENT_URL: http://agents:8050
+      DATABASE_URL: postgresql://${POSTGRES_USER:-denshees}:${POSTGRES_PASSWORD:-denshees}@postgres:5432/${POSTGRES_DB:-denshees}
+      APP_URL: ${APP_URL:-}
+      JWT_SECRET: ${JWT_SECRET}
+      API_KEY: ${API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DODO_PAYMENTS_API_KEY: ${DODO_PAYMENTS_API_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SUPPORT_NOTIFY_EMAILS: ${SUPPORT_NOTIFY_EMAILS:-}
+      NEXT_PUBLIC_AMPLITUDE_API_KEY: ${NEXT_PUBLIC_AMPLITUDE_API_KEY:-}
+      AMPLITUDE_API_KEY: ${AMPLITUDE_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  agents:
+    build:
+      context: "https://github.com/abelink-ai/denshees.git#main"
+      dockerfile: apps/agents/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8050"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      BACKEND_URL: http://denshees:3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-denshees}:${POSTGRES_PASSWORD:-denshees}@postgres:5432/${POSTGRES_DB:-denshees}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-denshees-agents}
+      LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+      AMPLITUDE_AI_API_KEY: ${AMPLITUDE_AI_API_KEY:-}
+    depends_on:
+      denshees:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8050/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  postgres-data:
+  redis-data:

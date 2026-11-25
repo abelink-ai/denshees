@@ -1,0 +1,53 @@
+[variables]
+main_domain = "${domain}"
+postgres_password = "${password:32}"
+jwt_secret = "${base64:32}"
+api_key = "${hash:32}"
+
+[config]
+env = [
+  # --- DATABASE (bundled PostgreSQL) ---
+  "POSTGRES_USER=denshees",
+  "POSTGRES_PASSWORD=${postgres_password}",
+  "POSTGRES_DB=denshees",
+
+  # --- PUBLIC APP URL ---
+  "APP_URL=https://${main_domain}",
+  "TRACKING_BASE_URL=https://${main_domain}",
+
+  # --- CORE AUTH & INTERNAL SECRETS ---
+  "JWT_SECRET=${jwt_secret}",
+  "API_KEY=${api_key}",
+
+  # --- AI FEATURES (OpenAI) ---
+  "OPENAI_API_KEY=",
+
+  # --- OPTIONAL: GOOGLE SIGN-IN ---
+  "GOOGLE_CLIENT_ID=",
+  "NEXT_PUBLIC_GOOGLE_CLIENT_ID=",
+
+  # --- OPTIONAL: PAYMENTS (Dodo Payments) ---
+  "DODO_PAYMENTS_API_KEY=",
+
+  # --- OPTIONAL: SUPPORT NOTIFICATIONS (SMTP) ---
+  "SMTP_USER=",
+  "SMTP_PASS=",
+  "SUPPORT_NOTIFY_EMAILS=",
+
+  # --- OPTIONAL: ANALYTICS & TRACING ---
+  "NEXT_PUBLIC_AMPLITUDE_API_KEY=",
+  "AMPLITUDE_API_KEY=",
+  "AMPLITUDE_AI_API_KEY=",
+  "LANGSMITH_API_KEY=",
+  "LANGSMITH_PROJECT=denshees-agents",
+  "LANGSMITH_TRACING=false",
+
+  # --- LOGGING ---
+  "LOG_LEVEL=INFO",
+]
+mounts = []
+
+[[config.domains]]
+serviceName = "denshees"
+port = 3000
+host = "${main_domain}"

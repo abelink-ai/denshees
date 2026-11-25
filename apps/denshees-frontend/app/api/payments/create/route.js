@@ -1,14 +1,27 @@
 import { NextResponse } from "next/server";
 import DodoPayments from "dodopayments";
 
-// Initialize DodoPayments client
-const client = new DodoPayments({
-  bearerToken: process.env["DODO_PAYMENTS_API_KEY"],
-  //   environment: "test_mode",
-});
+function getDodoClient() {
+  const bearerToken = process.env["DODO_PAYMENTS_API_KEY"];
+  if (!bearerToken) {
+    return null;
+  }
+  return new DodoPayments({
+    bearerToken,
+    //   environment: "test_mode",
+  });
+}
 
 export async function POST(request) {
   try {
+    const client = getDodoClient();
+    if (!client) {
+      return NextResponse.json(
+        { error: "Payments are not configured" },
+        { status: 503 }
+      );
+    }
+
     const body = await request.json();
     const { creditType, quantity, userInfo } = body;
 
@@ -34,10 +47,15 @@ export async function POST(request) {
       );
     }
 
+    const appUrl = (process.env.APP_URL || "https://app.denshees.com").replace(
+      /\/$/,
+      ""
+    );
+
     console.log(userInfo);
     // Create payment with DodoPayments
     const payment = await client.payments.create({
-      return_url: `https://app.denshees.com/dashboard`,
+      return_url: `${appUrl}/dashboard`,
       payment_link: true,
       billing: {
         city: userInfo.city || "Unknown",

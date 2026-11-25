@@ -1,0 +1,20 @@
+{
+  "id": "denshees",
+  "name": "Denshees",
+  "version": "latest",
+  "description": "Open-source cold email outreach platform with automated campaigns, CRM pipeline, lead management, and AI-powered features.",
+  "links": {
+    "github": "https://github.com/abelink-ai/denshees",
+    "website": "https://denshees.com",
+    "docs": "https://github.com/abelink-ai/denshees#readme"
+  },
+  "logo": "denshees.png",
+  "tags": [
+    "email",
+    "outreach",
+    "crm",
+    "marketing",
+    "ai",
+    "self-hosted"
+  ]
+}
